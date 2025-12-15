@@ -28,8 +28,51 @@ async function run() {
         await client.connect();
 
         const db = client.db("garmentixDB");
-        // const parcelsCollection = db.collection("parcels");
+        const productsCollection = db.collection("products");
+        const ordersCollection = db.collection("orders");
         // const paymentCollection = db.collection("payments");
+
+
+        app.get('/products', async (req, res) => {
+            const cursor = productsCollection.find();
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+
+        app.get('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const product = await productsCollection.findOne(query);
+            res.send(product);
+        });
+
+
+
+        //orders
+
+        app.post('/orders', async (req, res) => {
+            const order = req.body;
+            const result = await ordersCollection.insertOne(order);
+            res.send(result);
+        });
+
+        app.get('/orders', async (req, res) => {
+            const email = req.query.email;
+            let query = {};
+            if (email) {
+                query = { email: email };
+            }
+            const cursor = ordersCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+        
+        app.delete('/orders/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await ordersCollection.deleteOne(query);
+            res.send(result);
+        });
 
 
 
