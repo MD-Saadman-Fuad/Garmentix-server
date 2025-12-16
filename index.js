@@ -30,6 +30,7 @@ async function run() {
         const db = client.db("garmentixDB");
         const productsCollection = db.collection("products");
         const ordersCollection = db.collection("orders");
+        const usersCollection = db.collection("users");
         // const paymentCollection = db.collection("payments");
 
 
@@ -57,6 +58,7 @@ async function run() {
         });
 
         app.get('/orders', async (req, res) => {
+            console.log('hit');
             const email = req.query.email;
             let query = {};
             if (email) {
@@ -73,6 +75,38 @@ async function run() {
             const result = await ordersCollection.deleteOne(query);
             res.send(result);
         });
+
+        //users
+
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
+
+        app.get('/users', async (req, res) => {
+            const cursor = usersCollection.find();
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+        app.get('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            res.send(user);
+        });
+
+        app.put('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const user = req.body;
+            const filter = { email: email };
+            const options = { upsert: true };
+            const updateDoc = { $set: user };
+            const result = await usersCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+        });
+
+        
 
 
 
