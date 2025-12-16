@@ -33,7 +33,12 @@ async function run() {
         const usersCollection = db.collection("users");
         // const paymentCollection = db.collection("payments");
 
-
+        //products APIs
+        app.post('/products', async (req, res) => {
+            const product = req.body;
+            const result = await productsCollection.insertOne(product);
+            res.send(result);
+        });
         app.get('/products', async (req, res) => {
             const cursor = productsCollection.find();
             const result = await cursor.toArray();
@@ -47,7 +52,21 @@ async function run() {
             res.send(product);
         });
 
-
+        app.put('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const product = req.body;
+            const filter = { _id: new ObjectId(id) };
+            const options = { upsert: true };
+            const updateDoc = { $set: product };
+            const result = await productsCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+        });
+        app.delete('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await productsCollection.deleteOne(query);
+            res.send(result);
+        });
 
         //orders
 
@@ -68,6 +87,17 @@ async function run() {
             const result = await cursor.toArray();
             res.send(result);
         });
+
+        app.patch('/orders/:id', async (req, res) => {
+            const id = req.params.id;
+            const status = req.body.status;
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: { status: status },
+            };
+            const result = await ordersCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        });
         
         app.delete('/orders/:id', async (req, res) => {
             const id = req.params.id;
@@ -80,6 +110,10 @@ async function run() {
 
         app.post('/users', async (req, res) => {
             const user = req.body;
+            const exists = await usersCollection.findOne({ email: user.email });
+            if (exists) {
+                return res.send({ message: 'User already exists' });
+            }
             const result = await usersCollection.insertOne(user);
             res.send(result);
         });
@@ -103,6 +137,13 @@ async function run() {
             const options = { upsert: true };
             const updateDoc = { $set: user };
             const result = await usersCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+        });
+
+        app.delete('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const result = await usersCollection.deleteOne(query);
             res.send(result);
         });
 
