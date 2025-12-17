@@ -40,21 +40,44 @@ async function run() {
             res.send(result);
         });
         app.get('/products', async (req, res) => {
-            const cursor = productsCollection.find();
+            const email = req.query.email;
+            let query = {};
+            if (email) {
+                query = { email: email };
+            }
+
+            const cursor = productsCollection.find(query);
             const result = await cursor.toArray();
             res.send(result);
         });
 
         app.get('/products/:id', async (req, res) => {
             const id = req.params.id;
+
+            // Validate ObjectId format
+            if (!ObjectId.isValid(id)) {
+                return res.status(400).send({ error: 'Invalid product ID format' });
+            }
+
             const query = { _id: new ObjectId(id) };
             const product = await productsCollection.findOne(query);
+
+            if (!product) {
+                return res.status(404).send({ error: 'Product not found' });
+            }
+
             res.send(product);
         });
 
         app.put('/products/:id', async (req, res) => {
             const id = req.params.id;
             const product = req.body;
+
+            // Validate ObjectId format
+            if (!ObjectId.isValid(id)) {
+                return res.status(400).send({ error: 'Invalid product ID format' });
+            }
+
             const filter = { _id: new ObjectId(id) };
             const options = { upsert: true };
             const updateDoc = { $set: product };
@@ -63,6 +86,12 @@ async function run() {
         });
         app.delete('/products/:id', async (req, res) => {
             const id = req.params.id;
+
+            // Validate ObjectId format
+            if (!ObjectId.isValid(id)) {
+                return res.status(400).send({ error: 'Invalid product ID format' });
+            }
+
             const query = { _id: new ObjectId(id) };
             const result = await productsCollection.deleteOne(query);
             res.send(result);
@@ -79,9 +108,13 @@ async function run() {
         app.get('/orders', async (req, res) => {
             console.log('hit');
             const email = req.query.email;
+            const status = req.query.status;
             let query = {};
             if (email) {
                 query = { email: email };
+            }
+            if (status) {
+                query.status = status;
             }
             const cursor = ordersCollection.find(query);
             const result = await cursor.toArray();
@@ -98,7 +131,7 @@ async function run() {
             const result = await ordersCollection.updateOne(filter, updateDoc);
             res.send(result);
         });
-        
+
         app.delete('/orders/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
@@ -147,7 +180,7 @@ async function run() {
             res.send(result);
         });
 
-        
+
 
 
 
