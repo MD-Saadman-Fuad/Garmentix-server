@@ -51,6 +51,13 @@ async function run() {
             res.send(result);
         });
 
+        app.get('/products/featured', async (req, res) => {
+            // console.log('hit featured');
+            const cursor = productsCollection.find({ showOnHome: true }).limit(6);
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+
         app.get('/products/:id', async (req, res) => {
             const id = req.params.id;
 
@@ -68,6 +75,8 @@ async function run() {
 
             res.send(product);
         });
+
+        
 
         app.put('/products/:id', async (req, res) => {
             const id = req.params.id;
