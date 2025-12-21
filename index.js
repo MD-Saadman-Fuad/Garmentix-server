@@ -178,6 +178,24 @@ async function run() {
             res.send(result);
         });
 
+        app.get('/orders/:id', async (req, res) => {
+            const id = req.params.id;
+
+            // Validate ObjectId format
+            if (!ObjectId.isValid(id)) {
+                return res.status(400).send({ error: 'Invalid order ID format' });
+            }
+
+            const query = { _id: new ObjectId(id) };
+            const order = await ordersCollection.findOne(query);
+
+            if (!order) {
+                return res.status(404).send({ error: 'Order not found' });
+            }
+
+            res.send(order);
+        });
+
         app.patch('/orders/:id', async (req, res) => {
             const id = req.params.id;
             const updateFields = req.body; // Accept all fields
