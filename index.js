@@ -6,6 +6,7 @@ require('dotenv').config();
 const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const stripe = require('stripe')(process.env.STRIPE_SECRET);
+const crypto = require('crypto');
 
 // Firebase Admin SDK (if you're using Firebase)
 const admin = require('firebase-admin');
@@ -179,10 +180,10 @@ async function run() {
 
         app.patch('/orders/:id', async (req, res) => {
             const id = req.params.id;
-            const status = req.body.status;
+            const updateFields = req.body; // Accept all fields
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
-                $set: { status: status },
+                $set: updateFields,
             };
             const result = await ordersCollection.updateOne(filter, updateDoc);
             res.send(result);
@@ -345,59 +346,71 @@ async function run() {
         });
 
         app.patch('/payment-success', async (req, res) => {
-            const sessionId = req.query.session_id;
-            // console.log(sessionId);
-            const session = await stripe.checkout.sessions.retrieve(sessionId);
+            try {
+                const sessionId = req.query.session_id;
 
-            const transactionId = session.payment_intent;
-            // console.log('retrives', session);
-            const trackingId = generateTrackingId();
-
-            const paymentexists = await paymentCollection.findOne({ transactionId: transactionId });
-            if (paymentexists) {
-                return res.send({ success: true, message: 'Payment already recorded', trackingId: paymentexists.trackingId, transactionId: transactionId, paymentInfo: paymentexists });
-            }
-
-            if (session.payment_status === 'paid') {
-                const id = session.metadata.parcelId;
-                const query = { _id: new ObjectId(id) };
-
-                const update = {
-                    $set: {
-                        paymentStatus: 'paid',
-                        trackingId: trackingId,
-                    }
-                }
-                const result = await ordersCollection.updateOne(query, update);
-
-                const payment = {
-                    amount: session.amount_total / 100,
-                    currency: session.currency,
-                    customerEmail: session.customer_email,
-                    parcelId: session.metadata.parcelId,
-                    parcelName: session.metadata.parcelName,
-                    transactionId: session.payment_intent,
-                    paymentStatus: session.payment_status,
-                    paidAt: new Date(),
-                    trackingId: trackingId,
-
+                if (!sessionId) {
+                    return res.status(400).send({ success: false, message: 'Session ID required' });
                 }
 
-                if (session.payment_status === 'paid') {
-                    const resultpayment = await paymentCollection.insertOne(payment);
-                    res.send({
+                const session = await stripe.checkout.sessions.retrieve(sessionId);
+                const transactionId = session.payment_intent;
+                const trackingId = generateTrackingId();
+
+                // Check if payment already recorded
+                const paymentExists = await paymentCollection.findOne({ transactionId: transactionId });
+                if (paymentExists) {
+                    return res.send({
                         success: true,
-                        modifiedparcel: result,
-                        trackingId: trackingId,
-                        transactionId: session.payment_intent,
-                        paymentInfo: resultpayment
+                        message: 'Payment already recorded',
+                        trackingId: paymentExists.trackingId,
+                        transactionId: transactionId
                     });
                 }
 
-                // return res.send(result);
+                if (session.payment_status === 'paid') {
+                    const id = session.metadata.parcelId;
+                    const query = { _id: new ObjectId(id) };
+
+                    // Update order with payment status
+                    const update = {
+                        $set: {
+                            paymentStatus: 'paid',
+                            paymentMethod: 'Stripe',
+                            trackingId: trackingId,
+                        }
+                    };
+                    const result = await ordersCollection.updateOne(query, update);
+
+                    // Record payment
+                    const payment = {
+                        amount: session.amount_total / 100,
+                        currency: session.currency,
+                        customerEmail: session.customer_email,
+                        parcelId: session.metadata.parcelId,
+                        parcelName: session.metadata.parcelName,
+                        transactionId: session.payment_intent,
+                        paymentStatus: session.payment_status,
+                        paidAt: new Date(),
+                        trackingId: trackingId,
+                    };
+
+                    const resultPayment = await paymentCollection.insertOne(payment);
+
+                    return res.send({
+                        success: true,
+                        modifiedOrder: result,
+                        trackingId: trackingId,
+                        transactionId: session.payment_intent,
+                    });
+                }
+
+                res.send({ success: false, message: 'Payment not completed' });
+            } catch (error) {
+                console.error('Payment success error:', error);
+                res.status(500).send({ success: false, error: error.message });
             }
-            res.send({ success: false });
-        })
+        });
 
         app.get('/payments', verifyFBToken, async (req, res) => {
             // console.log('query hit');
