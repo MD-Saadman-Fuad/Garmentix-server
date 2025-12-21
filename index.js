@@ -19,7 +19,7 @@ admin.initializeApp({
 const verifyFBToken = async (req, res, next) => {
     // Check Authorization header first, then cookie
     let token = req.headers.authorization;
-    
+
     if (!token) {
         token = req.cookies.firebaseToken;
     } else {
@@ -69,7 +69,7 @@ async function run() {
         const productsCollection = db.collection("products");
         const ordersCollection = db.collection("orders");
         const usersCollection = db.collection("users");
-        // const paymentCollection = db.collection("payments");
+        const paymentCollection = db.collection("payments");
 
         //products APIs
         app.post('/products', async (req, res) => {
@@ -265,7 +265,7 @@ async function run() {
             try {
                 // Check Authorization header first, then cookie
                 let token = req.headers.authorization;
-                
+
                 if (!token) {
                     token = req.cookies.firebaseToken;
                 } else {
@@ -299,6 +299,113 @@ async function run() {
                 sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             });
             res.send({ success: true });
+        });
+
+        //Payment Related API
+
+        app.post('/create-checkout-session', async (req, res) => {
+            const paymentInfo = req.body;
+            const amount = parseInt(paymentInfo.cost) * 100; // Convert to cents
+            const session = await stripe.checkout.sessions.create({
+                line_items: [
+                    {
+                        price_data: {
+                            currency: 'USD',
+                            unit_amount: amount,
+                            product_data: {
+                                name: paymentInfo.parcelName,
+                            }
+                        },
+
+                        quantity: 1,
+                    },
+                ],
+                customer_email: paymentInfo.senderEmail,
+                mode: 'payment',
+                metadata: {
+                    parcelId: paymentInfo.parcelId,
+                    parcelName: paymentInfo.parcelName,
+                },
+                success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+                cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+            });
+
+            // res.redirect(303, session.url);
+            console.log(session.url);
+            res.send({ url: session.url });
+        });
+
+        app.patch('/payment-success', async (req, res) => {
+            const sessionId = req.query.session_id;
+            // console.log(sessionId);
+            const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+            const transactionId = session.payment_intent;
+            // console.log('retrives', session);
+            const trackingId = generateTrackingId();
+
+            const paymentexists = await paymentCollection.findOne({ transactionId: transactionId });
+            if (paymentexists) {
+                return res.send({ success: true, message: 'Payment already recorded', trackingId: paymentexists.trackingId, transactionId: transactionId, paymentInfo: paymentexists });
+            }
+
+            if (session.payment_status === 'paid') {
+                const id = session.metadata.parcelId;
+                const query = { _id: new ObjectId(id) };
+
+                const update = {
+                    $set: {
+                        paymentStatus: 'Paid',
+                        trackingId: trackingId,
+                    }
+                }
+                const result = await parcelsCollection.updateOne(query, update);
+
+                const payment = {
+                    amount: session.amount_total / 100,
+                    currency: session.currency,
+                    customerEmail: session.customer_email,
+                    parcelId: session.metadata.parcelId,
+                    parcelName: session.metadata.parcelName,
+                    transactionId: session.payment_intent,
+                    paymentStatus: session.payment_status,
+                    paidAt: new Date(),
+                    trackingId: trackingId,
+
+                }
+
+                if (session.payment_status === 'paid') {
+                    const resultpayment = await paymentCollection.insertOne(payment);
+                    res.send({
+                        success: true,
+                        modifiedparcel: result,
+                        trackingId: trackingId,
+                        transactionId: session.payment_intent,
+                        paymentInfo: resultpayment
+                    });
+                }
+
+                // return res.send(result);
+            }
+            res.send({ success: false });
+        })
+
+        app.get('/payments', verifyFBToken, async (req, res) => {
+            // console.log('query hit');
+            const email = req.query.email;
+            // console.log(email);
+            const query = { customerEmail: email };
+            const options = { sort: { paidAt: -1 } };
+            if (email) {
+                query.customerEmail = email;
+
+                if (req.decodedEmail !== email) {
+                    return res.status(403).send({ message: 'Forbidden access' });
+                }
+            }
+            const cursor = paymentCollection.find(query, options).sort({ paidAt: -1 });
+            const payments = await cursor.toArray();
+            res.send(payments);
         });
 
 

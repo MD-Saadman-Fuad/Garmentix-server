@@ -26,17 +26,20 @@ Backend API server for Garmentix - A modern e-commerce platform for garments.
 ## 📦 Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/MD-Saadman-Fuad/Garmentix-server.git
 cd Garmentix-server
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Create a `.env` file in the root directory:
+
 ```env
 URI=your_mongodb_connection_string
 PORT=5000
@@ -49,11 +52,13 @@ FIREBASE_PRIVATE_KEY="your_firebase_private_key"
 ```
 
 4. Start the development server:
+
 ```bash
 npm run dev
 ```
 
 Or for production:
+
 ```bash
 npm start
 ```
@@ -61,6 +66,7 @@ npm start
 ## 🔌 API Endpoints
 
 ### Products
+
 - `GET /products` - Get all products (optional query: `?email=user@example.com`)
 - `GET /products/featured` - Get featured products (limited to 6)
 - `GET /products/:id` - Get product by ID
@@ -69,12 +75,14 @@ npm start
 - `DELETE /products/:id` - Delete product
 
 ### Orders
+
 - `GET /orders` - Get all orders (optional queries: `?email=user@example.com&status=pending`)
 - `POST /orders` - Create new order
 - `PATCH /orders/:id` - Update order status
 - `DELETE /orders/:id` - Delete order
 
 ### Users
+
 - `GET /users` - Get all users
 - `GET /users/:email` - Get user by email
 - `POST /users` - Create new user
@@ -82,6 +90,7 @@ npm start
 - `DELETE /users/:email` - Delete user
 
 ### Authentication
+
 - `POST /auth/login` - Login with Firebase token
   ```json
   {
@@ -94,22 +103,25 @@ npm start
 ## 🔐 Authentication
 
 The API uses Firebase Authentication. Protected routes require either:
+
 - **Authorization Header**: `Bearer <firebase_token>`
 - **Cookie**: `firebaseToken` (set automatically on login)
 
 ### Using the `verifyFBToken` Middleware
 
 For protected routes, add the middleware:
+
 ```javascript
-app.get('/protected-route', verifyFBToken, async (req, res) => {
-    // Access user info via req.user
-    console.log(req.user.email);
+app.get("/protected-route", verifyFBToken, async (req, res) => {
+  // Access user info via req.user
+  console.log(req.user.email);
 });
 ```
 
 ## 🌐 CORS Configuration
 
 The server accepts requests from:
+
 - Production: `https://garmentix.netlify.app`
 - Development: `http://localhost:5173`
 
@@ -117,14 +129,14 @@ Configure via `CLIENT_URL` environment variable.
 
 ## 📝 Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `URI` | MongoDB connection string | ✅ |
-| `PORT` | Server port (default: 3000) | ❌ |
-| `CLIENT_URL` | Frontend URL for CORS | ✅ |
-| `FIREBASE_PROJECT_ID` | Firebase project ID | ✅ |
-| `FIREBASE_CLIENT_EMAIL` | Firebase service account email | ✅ |
-| `FIREBASE_PRIVATE_KEY` | Firebase private key | ✅ |
+| Variable                | Description                    | Required |
+| ----------------------- | ------------------------------ | -------- |
+| `URI`                   | MongoDB connection string      | ✅       |
+| `PORT`                  | Server port (default: 3000)    | ❌       |
+| `CLIENT_URL`            | Frontend URL for CORS          | ✅       |
+| `FIREBASE_PROJECT_ID`   | Firebase project ID            | ✅       |
+| `FIREBASE_CLIENT_EMAIL` | Firebase service account email | ✅       |
+| `FIREBASE_PRIVATE_KEY`  | Firebase private key           | ✅       |
 
 ## 🚢 Deployment
 
@@ -146,6 +158,7 @@ ISC
 ## 👤 Author
 
 **MD Saadman Fuad**
+
 - GitHub: [@MD-Saadman-Fuad](https://github.com/MD-Saadman-Fuad)
 
 ## 🤝 Contributing
