@@ -6,15 +6,38 @@ const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 // Firebase Admin SDK (if you're using Firebase)
-// const admin = require('firebase-admin');
-// admin.initializeApp({
-//     credential: admin.credential.cert({
-//         projectId: process.env.FIREBASE_PROJECT_ID,
-//         privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-//         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-//     }),
-// });
+const admin = require('firebase-admin');
+admin.initializeApp({
+    credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    }),
+});
 
+const verifyFBToken = async (req, res, next) => {
+    // Check Authorization header first, then cookie
+    let token = req.headers.authorization;
+    
+    if (!token) {
+        token = req.cookies.firebaseToken;
+    } else {
+        token = token.split(' ')[1]; // Extract from "Bearer token"
+    }
+
+    if (!token) {
+        return res.status(401).send({ message: 'Unauthorized access' });
+    }
+
+    try {
+        const decoded = await admin.auth().verifyIdToken(token);
+        req.decodedEmail = decoded.email;
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).send({ message: 'Unauthorized access' });
+    }
+};
 
 // Middleware
 app.use(express.json());
@@ -202,39 +225,70 @@ async function run() {
             res.send(result);
         });
 
-        // Auth routes
+        // Auth Routes - Store Firebase token in cookie
         app.post('/auth/login', async (req, res) => {
             try {
                 const { idToken } = req.body;
-                
-                // Here you would verify the Firebase token
-                // For now, just acknowledge the request
-                res.status(200).json({ 
-                    success: true, 
-                    message: 'Login successful' 
+
+                if (!idToken) {
+                    return res.status(400).send({ message: 'Firebase token required' });
+                }
+
+                // Verify Firebase token
+                const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+                // Set Firebase token in httpOnly cookie
+                res.cookie('firebaseToken', idToken, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+                });
+
+                res.send({
+                    success: true,
+                    message: 'Login successful',
+                    user: {
+                        email: decodedToken.email,
+                        uid: decodedToken.uid
+                    }
                 });
             } catch (error) {
                 console.error('Login error:', error);
-                res.status(500).json({ 
-                    success: false, 
-                    message: 'Login failed' 
-                });
+                res.status(401).send({ message: 'Invalid Firebase token' });
             }
         });
 
-        app.post('/auth/logout', async (req, res) => {
+        app.get('/auth/verify', async (req, res) => {
             try {
-                res.status(200).json({ 
-                    success: true, 
-                    message: 'Logout successful' 
+                const token = req.cookies.firebaseToken;
+
+                if (!token) {
+                    return res.status(401).send({ authenticated: false });
+                }
+
+                // Verify Firebase token
+                const decodedToken = await admin.auth().verifyIdToken(token);
+
+                res.send({
+                    authenticated: true,
+                    user: {
+                        email: decodedToken.email,
+                        uid: decodedToken.uid
+                    }
                 });
             } catch (error) {
-                console.error('Logout error:', error);
-                res.status(500).json({ 
-                    success: false, 
-                    message: 'Logout failed' 
-                });
+                res.status(401).send({ authenticated: false });
             }
+        });
+
+        app.post('/auth/logout', (req, res) => {
+            res.clearCookie('firebaseToken', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            });
+            res.send({ success: true });
         });
 
 
