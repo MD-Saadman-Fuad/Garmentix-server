@@ -5,6 +5,7 @@ const app = express();
 require('dotenv').config();
 const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe = require('stripe')(process.env.STRIPE_SECRET);
 
 // Firebase Admin SDK (if you're using Firebase)
 const admin = require('firebase-admin');
