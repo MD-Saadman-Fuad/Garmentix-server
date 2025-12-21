@@ -89,7 +89,7 @@ async function run() {
             res.send(product);
         });
 
-        
+
 
         app.put('/products/:id', async (req, res) => {
             const id = req.params.id;
@@ -200,6 +200,41 @@ async function run() {
             const query = { email: email };
             const result = await usersCollection.deleteOne(query);
             res.send(result);
+        });
+
+        // Auth routes
+        app.post('/auth/login', async (req, res) => {
+            try {
+                const { idToken } = req.body;
+                
+                // Here you would verify the Firebase token
+                // For now, just acknowledge the request
+                res.status(200).json({ 
+                    success: true, 
+                    message: 'Login successful' 
+                });
+            } catch (error) {
+                console.error('Login error:', error);
+                res.status(500).json({ 
+                    success: false, 
+                    message: 'Login failed' 
+                });
+            }
+        });
+
+        app.post('/auth/logout', async (req, res) => {
+            try {
+                res.status(200).json({ 
+                    success: true, 
+                    message: 'Logout successful' 
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+                res.status(500).json({ 
+                    success: false, 
+                    message: 'Logout failed' 
+                });
+            }
         });
 
 
