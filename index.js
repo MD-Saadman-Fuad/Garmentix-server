@@ -5,10 +5,23 @@ require('dotenv').config();
 const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
+// Firebase Admin SDK (if you're using Firebase)
+// const admin = require('firebase-admin');
+// admin.initializeApp({
+//     credential: admin.credential.cert({
+//         projectId: process.env.FIREBASE_PROJECT_ID,
+//         privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+//         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+//     }),
+// });
+
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    credentials: true
+}));
 
 
 const uri = `${process.env.URI}`;
