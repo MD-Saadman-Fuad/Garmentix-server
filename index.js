@@ -17,6 +17,14 @@ admin.initializeApp({
     }),
 });
 
+function generateTrackingId() {
+    const prefix = "PRCL"; // your brand prefix
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
+    const random = crypto.randomBytes(3).toString("hex").toUpperCase(); // 6-char random hex
+
+    return `${prefix}-${date}-${random}`;
+}
+
 const verifyFBToken = async (req, res, next) => {
     // Check Authorization header first, then cookie
     let token = req.headers.authorization;
@@ -356,11 +364,11 @@ async function run() {
 
                 const update = {
                     $set: {
-                        paymentStatus: 'Paid',
+                        paymentStatus: 'paid',
                         trackingId: trackingId,
                     }
                 }
-                const result = await parcelsCollection.updateOne(query, update);
+                const result = await ordersCollection.updateOne(query, update);
 
                 const payment = {
                     amount: session.amount_total / 100,
