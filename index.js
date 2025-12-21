@@ -261,7 +261,14 @@ async function run() {
 
         app.get('/auth/verify', async (req, res) => {
             try {
-                const token = req.cookies.firebaseToken;
+                // Check Authorization header first, then cookie
+                let token = req.headers.authorization;
+                
+                if (!token) {
+                    token = req.cookies.firebaseToken;
+                } else {
+                    token = token.split(' ')[1]; // Extract from "Bearer token"
+                }
 
                 if (!token) {
                     return res.status(401).send({ authenticated: false });
@@ -278,6 +285,7 @@ async function run() {
                     }
                 });
             } catch (error) {
+                console.error('Token verification error:', error);
                 res.status(401).send({ authenticated: false });
             }
         });
