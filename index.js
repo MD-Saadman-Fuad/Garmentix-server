@@ -101,7 +101,7 @@ async function run() {
 
         app.get('/products/featured', async (req, res) => {
             // console.log('hit featured');
-            const cursor = productsCollection.find({ showOnHome: true }).limit(6);
+            const cursor = productsCollection.find({ showOnHome: true }).limit(8);
             const result = await cursor.toArray();
             res.send(result);
         });
